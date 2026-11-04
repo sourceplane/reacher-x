@@ -1,0 +1,23 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: RX-4
+  title: "RX3: ReacherX is live on stage and prod"
+spec:
+  goal: "A merge to main converges stage and then prod through Orun, and both environments pass their smoke checks on workers.dev"
+  affects:
+    - "intent.yaml"
+    - "infra/**"
+    - "wrangler.template.jsonc"
+    - "demos/app/wrangler.template.jsonc"
+    - "open-next.config.ts"
+    - "package.json"
+    - "tooling/**"
+    - ".github/workflows/orun.yml"
+    - "specs/epics/reacher-x-on-orunbase/**"
+    - "tasks/**"
+  doneWhen:
+    - "cloudflare-kv is applied and demo and web are deployed to stage and prod from main"
+    - "https://reacher-x-web-stage.rahulvarghesepullely.workers.dev/home and the prod URL answer 200, and both demo Workers serve /agent"
+    - "the backend job reports the Convex deploy skipped until CONVEX_DEPLOY_KEY is stored"
+  gates: []

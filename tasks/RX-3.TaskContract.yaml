@@ -1,0 +1,17 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: RX-3
+  title: "RX2: Orun runs ReacherX"
+spec:
+  goal: "intent.yaml, the repo-local compositions, the cache KV Terraform root and the Orun CI workflow are on main, and orun plan resolves every component"
+  affects:
+    - "intent.yaml"
+    - "infra/**"
+    - ".github/workflows/orun.yml"
+    - "specs/epics/reacher-x-on-orunbase/**"
+    - "tasks/**"
+  doneWhen:
+    - "orun plan resolves cloudflare-kv, backend, demo and web: stage on a pull request, stage and prod on main"
+    - ".github/workflows/orun.yml runs only when the ORUN_CI repository variable is true"
+  gates: []

@@ -1,0 +1,40 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: RX-2
+  title: "RX1: the main app and the demo app run on Cloudflare Workers"
+spec:
+  goal: "Both Next.js apps build into Workers with @opennextjs/cloudflare, fit the 10 MB compressed limit, and serve their pages on workerd, with the upstream checks green"
+  affects:
+    - "package.json"
+    - "pnpm-lock.yaml"
+    - "pnpm-workspace.yaml"
+    - ".gitignore"
+    - ".dev.vars.example"
+    - "next.config.mjs"
+    - "open-next.config.ts"
+    - "wrangler.template.jsonc"
+    - "wiring.fixture.json"
+    - "scripts/generate-server-content.mjs"
+    - "tooling/**"
+    - "app/layout.tsx"
+    - "app/(landing)/blog/examples/content/page.tsx"
+    - "features/blog/lib/blogPosts.ts"
+    - "features/blog/ui/components/BlogMdx.tsx"
+    - "features/agent/lib/xChatBrowserSession.ts"
+    - "features/agent/lib/xChatSdk.ts"
+    - "features/agent/lib/xChatSdk.server.ts"
+    - "shared/lib/highlight/**"
+    - "shared/lib/utils/opengraph/ogImageCore.tsx"
+    - "shared/ui/components/CodeBlock.tsx"
+    - "demos/app/next.config.mjs"
+    - "demos/app/open-next.config.ts"
+    - "demos/app/wrangler.template.jsonc"
+    - "specs/epics/reacher-x-on-orunbase/**"
+    - "tasks/**"
+  doneWhen:
+    - "pnpm build:worker and pnpm build:demo:worker produce .open-next/worker.js for both apps"
+    - "wrangler deploy --dry-run reports each Worker under 10 MB compressed"
+    - "wrangler dev serves /home, /pricing, /blog, a post, the OG images, llms.txt, the sitemap and the feed, redirects / to /home and /login to WorkOS, and the demo serves /agent"
+    - "the upstream CI (typecheck, lint, format, Convex tests) is green on the pull request"
+  gates: []
