@@ -34,3 +34,6 @@ spec:
     - name: deploy
       profileRef:
         name: reacherx-worker-deploy
+    - name: deploy-static
+      profileRef:
+        name: reacherx-worker-deploy-static

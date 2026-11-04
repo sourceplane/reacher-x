@@ -155,9 +155,18 @@ components:
     type: convex-deploy
     domain: backend
     path: .
+    change:
+      inputs:
+        - "convex/**"
+        - "convex.json"
+        - "package.json"
+        - "pnpm-lock.yaml"
+        - "infra/stack/compositions/convex-deploy/**"
     parameters:
       nodeVersion: "22"
       pnpmVersion: "11.7.0"
+      installCommand: pnpm install --frozen-lockfile
+      functionsDir: convex
     optionalSecretEnv:
       CONVEX_DEPLOY_KEY: "secret://ws_08AC9DT1/reacher-x/{{ .environment }}/CONVEX_DEPLOY_KEY"
     subscribe:
@@ -177,10 +186,27 @@ components:
 
   # The isolated demo app (demos/app): fictional data, no backend, no secrets.
   - name: demo
-    type: cloudflare-workers-assets-turbo
+    type: reacherx-worker
     domain: web
     path: demos/app
     lane: isolated
+    # The demo reuses the main app's components, so shared code selects it.
+    change:
+      inputs:
+        - "app/**"
+        - "features/**"
+        - "shared/**"
+        - "components/**"
+        - "convex/**"
+        - "types/**"
+        - "package.json"
+        - "pnpm-lock.yaml"
+        - "pnpm-workspace.yaml"
+        - "patches/**"
+        - "tooling/**"
+        - "tsconfig.json"
+        - "postcss.config.mjs"
+        - "global.d.ts"
     parameters:
       nodeVersion: "22"
       pnpmVersion: "11.7.0"
@@ -207,7 +233,7 @@ components:
           env:
             NEXT_PUBLIC_DEMO_PARENT_ORIGIN: https://reacher-x-web-stage.rahulvarghesepullely.workers.dev
           profileRules:
-            - profile: deploy
+            - profile: deploy-static
               when:
                 triggerRef: github-push-main
         - name: prod
@@ -215,7 +241,7 @@ components:
           env:
             NEXT_PUBLIC_DEMO_PARENT_ORIGIN: https://reacher-x-web-prod.rahulvarghesepullely.workers.dev
           profileRules:
-            - profile: deploy
+            - profile: deploy-static
               when:
                 triggerRef: github-push-main
 
@@ -225,6 +251,35 @@ components:
     domain: web
     path: .
     lane: isolated
+    # The app sits at the repository root, so its own path selects nothing:
+    # these are the files that change what the Worker serves.
+    change:
+      inputs:
+        - "app/**"
+        - "features/**"
+        - "shared/**"
+        - "components/**"
+        - "convex/**"
+        - "types/**"
+        - "package.json"
+        - "pnpm-lock.yaml"
+        - "pnpm-workspace.yaml"
+        - "patches/**"
+        - "tooling/**"
+        - "tsconfig.json"
+        - "postcss.config.mjs"
+        - "global.d.ts"
+        - "content/**"
+        - "public/**"
+        - "proxy.ts"
+        - "instrumentation.ts"
+        - "mdx-components.tsx"
+        - "next.config.mjs"
+        - "open-next.config.ts"
+        - "wrangler.template.jsonc"
+        - "wiring.fixture.json"
+        - "scripts/**"
+        - "infra/stack/compositions/reacherx-worker/**"
     dependsOn:
       - component: cloudflare-kv
       - component: backend

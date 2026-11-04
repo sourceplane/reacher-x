@@ -8,7 +8,7 @@ place the code departed from `design.md` or from upstream.
 | RX0 the spec                | done  | [#1](https://github.com/sourceplane/reacher-x/pull/1) |
 | RX1 the apps run on Workers | done  | [#4](https://github.com/sourceplane/reacher-x/pull/4) |
 | RX2 Orun runs it            | done  | [#3](https://github.com/sourceplane/reacher-x/pull/3) |
-| RX3 live on stage and prod  |       |                                                       |
+| RX3 live on stage and prod  | done  | [#5](https://github.com/sourceplane/reacher-x/pull/5) |
 | RX4 ready to hand over      |       |                                                       |
 
 ## RX1 as built
