@@ -1,23 +1,14 @@
-import { readFile, readdir } from "node:fs/promises";
-import path from "node:path";
 import { cache } from "react";
+import { blogPostSources } from "@/shared/lib/generated/serverContent";
 import { getCurrentUTCTimestamp } from "@/shared/lib/utils/time/timeUtils";
 import { parseBlogPost, publicBlogPosts } from "./blogContentCore";
 import type { BlogPostSummary } from "./blogHelpers";
 
-const contentDirectory = path.join(process.cwd(), "content/blog");
+// Sources come from content/blog, bundled at build time by
+// scripts/generate-server-content.mjs (Workers cannot read files at runtime).
 export const getBlogPosts = cache(async () => {
-  const files = (await readdir(contentDirectory)).filter((file) =>
-    file.endsWith(".mdx")
-  );
-  const posts = await Promise.all(
-    files.map(async (file) => {
-      const post = parseBlogPost(
-        await readFile(path.join(contentDirectory, file), "utf8"),
-        file.slice(0, -4)
-      );
-      return post;
-    })
+  const posts = blogPostSources.map(({ slug, source }) =>
+    parseBlogPost(source, slug)
   );
   return publicBlogPosts(
     posts,

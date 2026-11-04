@@ -64,3 +64,19 @@ next-env.d.ts
 
 # codex / local test artifacts
 .codex-tmp/
+
+# cloudflare workers (OpenNext build output, rendered wrangler config, local secrets)
+/.open-next/
+/.wrangler/
+/wrangler.jsonc
+/demos/app/.open-next/
+/demos/app/.wrangler/
+/demos/app/wrangler.jsonc
+.dev.vars*
+!.dev.vars.example
+
+# generated at install/build by scripts/generate-server-content.mjs
+/shared/lib/generated/
+
+# orun per-job staged workspaces and object-model caches
+**/.orun/

@@ -1,0 +1,3 @@
+# Worker secrets for local Workers runs (pnpm preview:worker, wrangler dev).
+# Copy to .dev.vars (git-ignored). Generate with: openssl rand -base64 48
+WORKOS_COOKIE_PASSWORD=

@@ -1,0 +1,8 @@
+{
+  "cloudflare-kv/stage": {
+    "next_inc_cache_kv_id": "00000000000000000000000000000001"
+  },
+  "cloudflare-kv/prod": {
+    "next_inc_cache_kv_id": "00000000000000000000000000000002"
+  }
+}

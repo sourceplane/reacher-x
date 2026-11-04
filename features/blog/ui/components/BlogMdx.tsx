@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { cacheLife } from "next/cache";
 import { isValidElement, type ComponentProps, type ReactNode } from "react";
-import { codeToHtml, bundledLanguages } from "shiki";
+import { highlightCode } from "@/shared/lib/highlight/blogHighlighter";
 import { InlineCode } from "@/shared/ui/components/InlineCode";
 import { BlogCopyButton } from "./BlogCopyButton";
 
@@ -18,11 +18,7 @@ export async function BlogPre({ children }: { children?: ReactNode }) {
   const code = String(children.props.children ?? "").replace(/\n$/, "");
   const requestedLanguage =
     children.props.className?.replace("language-", "") ?? "text";
-  const language =
-    requestedLanguage in bundledLanguages
-      ? (requestedLanguage as keyof typeof bundledLanguages)
-      : "text";
-  const html = await highlightBlogCode(code, language);
+  const html = await highlightBlogCode(code, requestedLanguage);
   return (
     <div className="not-prose border-border my-8 overflow-hidden rounded-md border">
       <div className="border-border flex items-center justify-between border-b px-4 py-2 text-xs">
@@ -39,17 +35,14 @@ export async function BlogPre({ children }: { children?: ReactNode }) {
   );
 }
 
-// Shiki initializes WASM using timing APIs. Cache the HTML string, rather than
-// the component tree, so highlighting stays compatible with prerendering.
+// Cache the HTML string, rather than the component tree, so highlighting
+// stays compatible with prerendering.
 // Highlighting is deterministic per code block, so cache it for as long as
 // possible; fresh deploys repopulate the cache anyway.
 async function highlightBlogCode(code: string, language: string) {
   "use cache";
   cacheLife("max");
-  return codeToHtml(code, {
-    lang: language,
-    themes: { light: "github-light", dark: "github-dark" },
-  });
+  return highlightCode(code, language);
 }
 
 export function BlogImage({

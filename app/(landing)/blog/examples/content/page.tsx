@@ -1,7 +1,6 @@
 import { BlogAuthor } from "@/features/blog/ui/components/BlogAuthor";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import type { Metadata } from "next";
+import { blogExampleSource } from "@/shared/lib/generated/serverContent";
 import Content from "@/content/blog-examples/content.mdx";
 import { BlogArticle } from "@/features/blog/ui/components/BlogArticle";
 import { parseBlogPost } from "@/features/blog/lib/blogContentCore";
@@ -13,14 +12,8 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 export default async function BlogContentPreview() {
-  const [source, related] = await Promise.all([
-    readFile(
-      path.join(process.cwd(), "content/blog-examples/content.mdx"),
-      "utf8"
-    ),
-    getBlogPosts(),
-  ]);
-  const post = parseBlogPost(source, "content-preview");
+  const related = await getBlogPosts();
+  const post = parseBlogPost(blogExampleSource, "content-preview");
   return (
     <BlogArticle
       author={<BlogAuthor />}
