@@ -1,0 +1,14 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: RX-1
+  title: "RX0: the ReacherX on Orunbase doc set"
+spec:
+  goal: "The epic's design of record (README, design, plan, risks, status) and every task contract are on main"
+  affects:
+    - "specs/epics/reacher-x-on-orunbase/**"
+    - "tasks/**"
+  doneWhen:
+    - "specs/epics/reacher-x-on-orunbase holds README.md, design.md, implementation-plan.md, risks-and-open-questions.md and IMPLEMENTATION-STATUS.md"
+    - "tasks/RX-1 to RX-5 contracts are on main"
+  gates: []

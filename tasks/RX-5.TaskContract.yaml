@@ -1,0 +1,20 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: RX-5
+  title: "RX4: ReacherX on Orunbase is ready to hand over"
+spec:
+  goal: "The README tells a maintainer how to run, preview and deploy ReacherX through Orun and how to finish the cut-over, and the status file records every departure"
+  affects:
+    - "README.md"
+    - "docs/configuration.md"
+    - ".env.example"
+    - "vercel.json"
+    - "demos/app/vercel.json"
+    - "demos/app/.env.example"
+    - "specs/epics/reacher-x-on-orunbase/**"
+    - "tasks/**"
+  doneWhen:
+    - "the README covers local Workers preview, the Orun pipeline, and the cut-over: Convex deploy key and URL, WorkOS client and keys, reacherx.com DNS and callback URLs"
+    - "IMPLEMENTATION-STATUS.md lists every departure from upstream and from design.md"
+  gates: []
