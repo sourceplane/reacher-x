@@ -1,0 +1,15 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: RX-7
+  title: "RX3: smoke-test web on a route outside the auth proxy"
+spec:
+  goal: "The web deploy's smoke check passes before Orun writes WORKOS_COOKIE_PASSWORD into the Worker (materialize runs after the job's steps), so the secret is delivered and the proxied pages serve"
+  affects:
+    - "intent.yaml"
+    - "specs/epics/reacher-x-on-orunbase/**"
+    - "tasks/**"
+  doneWhen:
+    - "web deploys to stage and prod and materializes WORKOS_COOKIE_PASSWORD"
+    - "https://reacher-x-web-stage.rahulvarghesepullely.workers.dev/home and the prod URL answer 200"
+  gates: []

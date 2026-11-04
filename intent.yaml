@@ -299,7 +299,11 @@ components:
       # Deploy lanes hold the Cloudflare token and render the KV id from the
       # wiring document; verify lanes render from the fixture.
       buildCommand: 'if [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then node tooling/wire/live.mjs --template wrangler.template.jsonc --out wrangler.jsonc --components cloudflare-kv --env "${ORUN_ENVIRONMENT}"; else node tooling/wire/render.mjs --template wrangler.template.jsonc --out wrangler.jsonc --map wiring.fixture.json --env "${ORUN_ENVIRONMENT}"; fi && pnpm build:worker'
-      smokeCommand: 'html=$(curl -sfL "${DEPLOYED_URL}/home") && echo "${html}" | grep -qi "reacherx"'
+      # /llms.txt is served by the Worker without the AuthKit proxy. Orun
+      # writes WORKOS_COOKIE_PASSWORD into the Worker only after the job's
+      # steps (smoke included) pass, and proxied pages need it, so the very
+      # first deploy can only prove itself on a route outside the proxy.
+      smokeCommand: 'body=$(curl -sfL "${DEPLOYED_URL}/llms.txt") && echo "${body}" | grep -qi "reacherx"'
     env:
       NODE_OPTIONS: --max-old-space-size=6144
       NEXT_TELEMETRY_DISABLED: "1"
