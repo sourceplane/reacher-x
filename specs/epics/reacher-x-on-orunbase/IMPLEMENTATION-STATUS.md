@@ -74,4 +74,30 @@ orun v2.78.4 and stack-tectonic 0.20.0, the versions the baselines run.
 
 ## Departures from the design
 
-None.
+- **Worker secrets are written by a deploy step, not Orun's `materialize`.**
+  orun builds the `cloudflare-worker` materialize adapter from the `orun run`
+  process environment, and CI brokers the Cloudflare token into each job, so
+  no adapter is wired ("no materialize adapters are configured"). The
+  repo-local `reacherx-worker` composition has a `worker-secrets` step after
+  `deploy` that pipes the component's `workerSecrets` as JSON on stdin to
+  `wrangler secret bulk` (#8). Worth fixing in orun: build the adapter from
+  the job's resolved secrets.
+- **The demo uses the repo-local composition too** (`deploy-static`), because
+  stack-tectonic's structure check expects a `package.json` and a committed
+  `wrangler.jsonc` in the component's own directory (#5).
+- **Lane jobs run in the checkout** (`orun run --isolation none`). A staged
+  job tree links `node_modules` back to the checkout, which Turbopack refuses
+  as outside its root, and Next's instrumentation trace goes missing (#5).
+- **`change.inputs` on `web`, `demo` and `backend`.** A component at the
+  repository root owns no files under `--changed`, and the demo reuses the
+  root's code (#5). Pull request plans create the local base branch first so
+  orun can read the base `intent.yaml` (#5).
+- **No source maps are uploaded** (`upload_source_maps: false`): both apps'
+  maps exceed Cloudflare's 60 MiB per Worker (#6).
+- **Smoke checks match with a here-string**: under `pipefail` a `grep -q`
+  pipe fails with SIGPIPE on pages larger than a pipe buffer (#9).
+- **Tasks read `ready`, not `done`, in Orunbase.** The openproduct account's
+  GitHub connection is the `pullely` installation, so Orunbase does not see
+  this repository's pull request events, and no `orun/compliance` check ran.
+  CI runs do reach the workspace (GitHub OIDC). Connecting the sourceplane
+  GitHub installation to the account would fix it.

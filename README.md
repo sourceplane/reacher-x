@@ -5,7 +5,7 @@ Open-source `△` Agentic platform and infrastructure that works 24/7 across X/T
 <div align="left">
 
 [![Live site](https://img.shields.io/badge/Live-reacherx.com-000000?style=for-the-badge&logo=googlechrome&logoColor=white)](https://reacherx.com)
-[![Interactive demo](https://img.shields.io/badge/Interactive_demo-reacherx--demos.vercel.app-000000?style=for-the-badge&logo=v&logoColor=white)](https://reacherx-demos.vercel.app/)
+[![Interactive demo](https://img.shields.io/badge/Interactive_demo-Cloudflare_Workers-000000?style=for-the-badge&logo=cloudflare&logoColor=white)](https://reacher-x-demo-prod.rahulvarghesepullely.workers.dev/)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-000000?style=for-the-badge&logo=gnu&logoColor=white)](./LICENSE)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-000000?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -37,7 +37,7 @@ ReacherX is part of the [Convex for Open Source](https://www.convex.dev/open-sou
 
 [Watch the demo on YouTube](https://www.youtube.com/watch?v=xlyUWC-Uwr8)
 
-There is also an [interactive demo](https://reacherx-demos.vercel.app/). It is a dashboard prepopulated with fictional data, so you can click around and get a general understanding of the product. It is not a walkthrough, and nothing sends from it.
+There is also an [interactive demo](https://reacher-x-demo-prod.rahulvarghesepullely.workers.dev/). It is a dashboard prepopulated with fictional data, so you can click around and get a general understanding of the product. It is not a walkthrough, and nothing sends from it.
 
 ## Who it is for
 
