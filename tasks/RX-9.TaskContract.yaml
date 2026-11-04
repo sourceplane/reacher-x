@@ -1,0 +1,14 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: RX-9
+  title: "RX3: smoke checks read the whole page under pipefail"
+spec:
+  goal: "The web and demo smoke checks pass on a healthy Worker: they match the page with a here-string instead of a pipe, which pipefail fails with SIGPIPE once a page is larger than the pipe buffer"
+  affects:
+    - "intent.yaml"
+    - "specs/epics/reacher-x-on-orunbase/**"
+    - "tasks/**"
+  doneWhen:
+    - "web and demo deploy to stage and prod from main with passing smoke checks"
+  gates: []
