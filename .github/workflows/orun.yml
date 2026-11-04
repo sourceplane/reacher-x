@@ -207,12 +207,18 @@ jobs:
           # closed. Nothing mutating runs here: deploy/apply profiles are gated
           # on triggerRef github-push-main.
           state_flag="--remote-state"
+          # --isolation none: jobs run in the checkout itself. A staged job
+          # tree links node_modules back to the checkout, which Turbopack
+          # refuses as outside its root ("Could not find the Next.js
+          # package"). The Next builds have lanes of their own, and the
+          # other jobs in a lane touch different files.
           orun run \
             --plan plan.json \
             --runner github-actions \
             $state_flag \
             --lane "${{ matrix.lane }}" \
             --exec-id "${{ github.run_id }}" \
+            --isolation none \
             $retry_flag
         env:
           # GITHUB_TOKEN is the only credential CI holds: GitHub-issued and
