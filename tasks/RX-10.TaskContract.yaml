@@ -1,0 +1,16 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: RX-10
+  title: "RX3: no __name helper in scripts Next inlines into pages"
+spec:
+  goal: "Pages load without the 'ReferenceError: __name is not defined' that wrangler's keep_names bundling put into scripts Next serializes into the HTML (the theme script)"
+  affects:
+    - "wrangler.template.jsonc"
+    - "demos/app/wrangler.template.jsonc"
+    - "specs/epics/reacher-x-on-orunbase/**"
+    - "tasks/**"
+  doneWhen:
+    - "both wrangler templates set keep_names to false"
+    - "the browser console on /home in stage and prod shows no __name error"
+  gates: []
