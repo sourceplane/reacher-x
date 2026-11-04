@@ -1,6 +1,5 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { ImageResponse } from "next/og";
+import { geistRegularBase64 } from "@/shared/lib/generated/serverContent";
 import { REACHERX_ICON_GLYPH_PATH } from "@/shared/ui/components/icons";
 
 const OG_IMAGE_WIDTH = 1200;
@@ -12,12 +11,11 @@ const OG_CACHE_CONTROL =
 
 let fontData: Promise<Buffer> | undefined;
 
+// The font is bundled at build time (scripts/generate-server-content.mjs)
+// because Workers cannot read node_modules at runtime.
 function loadGeistRegular() {
-  return (fontData ??= readFile(
-    path.join(
-      process.cwd(),
-      "node_modules/geist/dist/fonts/geist-sans/Geist-Regular.ttf"
-    )
+  return (fontData ??= Promise.resolve(
+    Buffer.from(geistRegularBase64, "base64")
   ));
 }
 

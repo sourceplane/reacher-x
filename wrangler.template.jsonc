@@ -1,0 +1,44 @@
+// The main app's Worker config. Rendered to wrangler.jsonc (git-ignored) by
+// tooling/wire: from wiring.fixture.json for local runs and verify lanes, and
+// from the cloudflare-kv root's wiring document in deploy lanes. __ENV__ is
+// the environment the file is rendered for (stage, prod).
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "reacher-x-web-__ENV__",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "observability": { "enabled": true },
+  // Non-secret runtime settings. WorkOS secrets (WORKOS_COOKIE_PASSWORD, and
+  // WORKOS_API_KEY once WorkOS is connected) are Worker secrets that Orun
+  // writes after each deploy.
+  "vars": {
+    "LOG_DEPLOYMENT_ENVIRONMENT": "__ENV__",
+    // The WorkOS AuthKit client id is public. Replace the placeholder with the
+    // real one to turn sign-in on; until then pages render for anonymous
+    // visitors and sign-in links fail at WorkOS.
+    "WORKOS_CLIENT_ID": "client_unconfigured",
+  },
+  // The Next.js incremental cache ("use cache" entries, prerendered pages).
+  "kv_namespaces": [
+    {
+      "binding": "NEXT_INC_CACHE_KV",
+      "id": "@@wiring(cloudflare-kv/__ENV__:next_inc_cache_kv_id)@@",
+    },
+  ],
+  // Background revalidation of stale cache entries. The Worker exports the
+  // class; the migration creates it on the first deploy.
+  "durable_objects": {
+    "bindings": [{ "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" }],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DOQueueHandler"] }],
+  "services": [
+    { "binding": "WORKER_SELF_REFERENCE", "service": "reacher-x-web-__ENV__" },
+  ],
+  // next/image optimization through Cloudflare Images.
+  "images": { "binding": "IMAGES" },
+}
