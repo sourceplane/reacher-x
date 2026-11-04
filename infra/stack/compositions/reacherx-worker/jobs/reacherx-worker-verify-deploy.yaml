@@ -20,6 +20,7 @@ spec:
     - reacherx-worker.verify-output
     - reacherx-worker.deploy-dry-run
     - reacherx-worker.deploy
+    - reacherx-worker.worker-secrets
     - reacherx-worker.smoke
 
   steps:
@@ -137,6 +138,35 @@ spec:
         done
         echo "deploy failed after $attempts attempts"
         exit 1
+      onFailure: stop
+
+    # Writes the component's workerSecrets (names of env vars the job resolved
+    # from Orun secrets) into the deployed Worker, before the smoke check. The
+    # values travel as JSON on stdin to `wrangler secret bulk`, never as
+    # arguments, and are never printed. Orun's own materialize step cannot do
+    # this here: it builds its Cloudflare client from the `orun run` process
+    # environment, and CI brokers the token into each job instead.
+    - id: worker-secrets
+      name: worker-secrets
+      capability: reacherx-worker.worker-secrets
+      shell: bash
+      run: |
+        set -euo pipefail
+        : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID is required}"
+        : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN is required}"
+        {{- if .parameters.environmentAwareWorkerName }}
+        EFFECTIVE_WORKER_NAME="{{ .parameters.workerName }}-{{ .orun.environment.name }}"
+        {{- else }}
+        EFFECTIVE_WORKER_NAME="{{ .parameters.workerName }}"
+        {{- end }}
+        node -e '
+          const out = {};
+          for (const key of process.argv.slice(1)) {
+            if (!process.env[key]) { console.error("worker-secrets: " + key + " is not set"); process.exit(1); }
+            out[key] = process.env[key];
+          }
+          process.stdout.write(JSON.stringify(out));
+        ' {{ .parameters.workerSecrets }} | pnpm exec wrangler secret bulk --name "${EFFECTIVE_WORKER_NAME}"
       onFailure: stop
 
     - id: smoke

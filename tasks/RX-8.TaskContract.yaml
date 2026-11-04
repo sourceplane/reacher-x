@@ -1,0 +1,16 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: RX-8
+  title: "RX3: write the web Worker's secrets in the deploy job"
+spec:
+  goal: "The web deploy writes WORKOS_COOKIE_PASSWORD into the Worker right after deploying, with the job's brokered Cloudflare token, so /home serves in stage and prod and the smoke check proves it"
+  affects:
+    - "intent.yaml"
+    - "infra/**"
+    - "specs/epics/reacher-x-on-orunbase/**"
+    - "tasks/**"
+  doneWhen:
+    - "web deploys to stage and prod, its worker-secrets step writes WORKOS_COOKIE_PASSWORD, and its /home smoke check passes"
+    - "https://reacher-x-web-stage.rahulvarghesepullely.workers.dev/home and the prod URL answer 200"
+  gates: []

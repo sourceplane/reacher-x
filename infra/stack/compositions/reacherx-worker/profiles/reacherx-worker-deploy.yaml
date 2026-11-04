@@ -19,14 +19,6 @@ spec:
     # step needs no ambient CI value for it either.
     CLOUDFLARE_ACCOUNT_ID: { required: true }
 
-  # After the deploy step succeeds, Orun writes these secrets into the
-  # deployed Worker (the component's per-environment `scriptName`). The values
-  # come from the component's secretEnv and never pass through a file or log.
-  materialize:
-    target: cloudflare-worker
-    secrets:
-      - WORKOS_COOKIE_PASSWORD
-
   jobs:
     verify-deploy:
       includeCapabilities:
@@ -37,4 +29,5 @@ spec:
         - reacherx-worker.build
         - reacherx-worker.verify-output
         - reacherx-worker.deploy
+        - reacherx-worker.worker-secrets
         - reacherx-worker.smoke
