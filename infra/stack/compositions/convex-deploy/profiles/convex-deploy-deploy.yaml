@@ -1,0 +1,16 @@
+apiVersion: sourceplane.io/v1alpha1
+kind: ExecutionProfile
+metadata:
+  name: convex-deploy-deploy
+spec:
+  description: Deploy the Convex backend when its deploy key is stored
+  policies:
+    requireCleanGitTree: true
+  jobs:
+    deploy:
+      includeCapabilities:
+        - convex-deploy.setup-node
+        - convex-deploy.setup-pnpm
+        - convex-deploy.install
+        - convex-deploy.verify-structure
+        - convex-deploy.deploy

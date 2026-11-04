@@ -1,0 +1,300 @@
+apiVersion: sourceplane.io/v1
+kind: Intent
+
+metadata:
+  name: reacher-x
+  description: ReacherX on Cloudflare Workers through Orunbase. The Next.js app and the demo app run as Workers built by @opennextjs/cloudflare; Convex stays the backend on Convex Cloud.
+  namespace: sourceplane
+
+execution:
+  state:
+    backendUrl: https://api-edge-prod.oruncloud.workers.dev
+    # The ReacherX workspace in the openproduct account. Declaring it implies
+    # strict mode: a non-interactive run that resolves no workspace fails fast.
+    workspace: ws_08AC9DT1
+    requireOrg: true
+    autopushCatalog: true
+  # CI runs one GitHub job per lane. The web build is the longest job, so it
+  # gets a lane of its own (component `lane: isolated`).
+  lanes:
+    mode: auto
+    maxLanes: 6
+    concurrency: 6
+
+compositions:
+  sources:
+    # Pinned: bumping the tag is the deliberate upgrade step.
+    - name: stack-tectonic
+      kind: oci
+      ref: oci://ghcr.io/sourceplane/stack-tectonic:0.20.0
+    # Repo-local: the main app's Worker pipeline (with secret delivery) and
+    # the Convex deploy, which stack-tectonic does not ship.
+    - name: reacherx
+      kind: dir
+      path: infra/stack
+  resolution:
+    precedence:
+      - reacherx
+      - stack-tectonic
+
+# Components are declared below rather than discovered: the main app lives at
+# the repository root. Nothing under infra/ carries a component.yaml.
+discovery:
+  roots:
+    - infra/
+
+automation:
+  triggerBindings:
+    github-pull-request:
+      description: Pull request validation
+      on:
+        provider: github
+        event: pull_request
+        actions:
+          - opened
+          - synchronize
+          - reopened
+          - ready_for_review
+        baseBranches:
+          - main
+      plan:
+        scope: changed
+        base: pull_request.base.sha
+        head: pull_request.head.sha
+
+    github-push-main:
+      description: Main branch convergence after merge
+      on:
+        provider: github
+        event: push
+        branches:
+          - main
+
+    local-development:
+      description: Local planning
+      on:
+        provider: local
+
+environments:
+  stage:
+    description: Deployed on every merge to main, before prod. Pull requests plan and verify here.
+    url: https://reacher-x-web-stage.rahulvarghesepullely.workers.dev
+    activation:
+      triggerRefs:
+        - github-pull-request
+        - github-push-main
+        - local-development
+    parameterDefaults:
+      terraform:
+        lane: verify
+        namespace: sourceplane
+        namespacePrefix: ""
+        owner: sourceplane
+        repo: reacher-x
+    policies:
+      requireApproval: "false"
+
+  prod:
+    description: Where visitors are. Deploys after stage converges on the same commit.
+    url: https://reacher-x-web-prod.rahulvarghesepullely.workers.dev
+    activation:
+      triggerRefs:
+        - github-push-main
+        - local-development
+    promotion:
+      dependsOn:
+        - environment: stage
+    parameterDefaults:
+      terraform:
+        lane: verify
+        namespace: sourceplane
+        namespacePrefix: ""
+        owner: sourceplane
+        repo: reacher-x
+    policies:
+      requireApproval: "false"
+
+components:
+  # The Workers KV namespace behind the main app's Next.js cache, one per
+  # environment. Its apply publishes the WIRING_CLOUDFLARE_KV document the web
+  # deploy renders into wrangler.jsonc.
+  - name: cloudflare-kv
+    type: terraform
+    domain: infra
+    path: infra/terraform/cloudflare-kv
+    parameters:
+      orgName: sourceplane
+      stackName: cloudflare-kv
+      terraformDir: terraform
+      terraformVersion: "1.15.3"
+      secretOutputs: "WIRING_CLOUDFLARE_KV=wiring"
+    # The Cloudflare token is brokered per run from the workspace's Cloudflare
+    # connection (template workers-deploy: Workers scripts and KV).
+    secretEnv:
+      CLOUDFLARE_API_TOKEN: "secret://ws_08AC9DT1/reacher-x/{{ .environment }}/CLOUDFLARE_API_TOKEN"
+      CLOUDFLARE_ACCOUNT_ID: "secret://ws_08AC9DT1/reacher-x/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+      TF_VAR_cloudflare_account_id: "secret://ws_08AC9DT1/reacher-x/{{ .environment }}/CLOUDFLARE_ACCOUNT_ID"
+    subscribe:
+      environments:
+        - name: stage
+          profile: plan-only
+          profileRules:
+            - profile: apply
+              when:
+                triggerRef: github-push-main
+        - name: prod
+          profile: plan-only
+          profileRules:
+            - profile: apply
+              when:
+                triggerRef: github-push-main
+
+  # The Convex backend (convex/). Convex Cloud runs it; this component only
+  # deploys it, and only once the environment's CONVEX_DEPLOY_KEY is stored.
+  - name: backend
+    type: convex-deploy
+    domain: backend
+    path: .
+    parameters:
+      nodeVersion: "22"
+      pnpmVersion: "11.7.0"
+    optionalSecretEnv:
+      CONVEX_DEPLOY_KEY: "secret://ws_08AC9DT1/reacher-x/{{ .environment }}/CONVEX_DEPLOY_KEY"
+    subscribe:
+      environments:
+        - name: stage
+          profile: verify
+          profileRules:
+            - profile: deploy
+              when:
+                triggerRef: github-push-main
+        - name: prod
+          profile: verify
+          profileRules:
+            - profile: deploy
+              when:
+                triggerRef: github-push-main
+
+  # The isolated demo app (demos/app): fictional data, no backend, no secrets.
+  - name: demo
+    type: cloudflare-workers-assets-turbo
+    domain: web
+    path: demos/app
+    lane: isolated
+    parameters:
+      nodeVersion: "22"
+      pnpmVersion: "11.7.0"
+      workspaceDir: ../..
+      appDir: .
+      turboFilter: reacher-x
+      wranglerConfig: wrangler.jsonc
+      workerEntrypoint: .open-next/worker.js
+      assetsDir: .open-next/assets
+      workerName: reacher-x-demo
+      environmentAwareWorkerName: true
+      workersDevSubdomain: rahulvarghesepullely
+      environmentBuildVar: ORUN_ENVIRONMENT
+      installCommand: pnpm install --frozen-lockfile
+      buildCommand: node ../../tooling/wire/render.mjs --template wrangler.template.jsonc --out wrangler.jsonc --map ../../wiring.fixture.json --env "${ORUN_ENVIRONMENT}" && cd ../.. && pnpm build:demo:worker
+      smokeCommand: 'html=$(curl -sfL "${DEPLOYED_URL}/agent") && echo "${html}" | grep -qi "reacherx"'
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+      NEXT_TELEMETRY_DISABLED: "1"
+    subscribe:
+      environments:
+        - name: stage
+          profile: verify
+          env:
+            NEXT_PUBLIC_DEMO_PARENT_ORIGIN: https://reacher-x-web-stage.rahulvarghesepullely.workers.dev
+          profileRules:
+            - profile: deploy
+              when:
+                triggerRef: github-push-main
+        - name: prod
+          profile: verify
+          env:
+            NEXT_PUBLIC_DEMO_PARENT_ORIGIN: https://reacher-x-web-prod.rahulvarghesepullely.workers.dev
+          profileRules:
+            - profile: deploy
+              when:
+                triggerRef: github-push-main
+
+  # The main Next.js app (repository root).
+  - name: web
+    type: reacherx-worker
+    domain: web
+    path: .
+    lane: isolated
+    dependsOn:
+      - component: cloudflare-kv
+      - component: backend
+    parameters:
+      nodeVersion: "22"
+      pnpmVersion: "11.7.0"
+      workspaceDir: .
+      appDir: .
+      wranglerConfig: wrangler.jsonc
+      workerEntrypoint: .open-next/worker.js
+      assetsDir: .open-next/assets
+      workerName: reacher-x-web
+      environmentAwareWorkerName: true
+      workersDevSubdomain: rahulvarghesepullely
+      environmentBuildVar: ORUN_ENVIRONMENT
+      installCommand: pnpm install --frozen-lockfile
+      # Deploy lanes hold the Cloudflare token and render the KV id from the
+      # wiring document; verify lanes render from the fixture.
+      buildCommand: 'if [ -n "${CLOUDFLARE_API_TOKEN:-}" ]; then node tooling/wire/live.mjs --template wrangler.template.jsonc --out wrangler.jsonc --components cloudflare-kv --env "${ORUN_ENVIRONMENT}"; else node tooling/wire/render.mjs --template wrangler.template.jsonc --out wrangler.jsonc --map wiring.fixture.json --env "${ORUN_ENVIRONMENT}"; fi && pnpm build:worker'
+      smokeCommand: 'html=$(curl -sfL "${DEPLOYED_URL}/home") && echo "${html}" | grep -qi "reacherx"'
+    env:
+      NODE_OPTIONS: --max-old-space-size=6144
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Until a Convex deployment is connected, the public pages render with
+      # their documented fallbacks (no testimonials, no live plan offers).
+      NEXT_PUBLIC_CONVEX_URL: https://unprovisioned.convex.cloud
+    secretEnv:
+      WORKOS_COOKIE_PASSWORD: "secret://ws_08AC9DT1/reacher-x/{{ .environment }}/WORKOS_COOKIE_PASSWORD"
+    optionalSecretEnv:
+      WIRING_CLOUDFLARE_KV_STAGE: "secret://ws_08AC9DT1/reacher-x/stage/WIRING_CLOUDFLARE_KV"
+      WIRING_CLOUDFLARE_KV_PROD: "secret://ws_08AC9DT1/reacher-x/prod/WIRING_CLOUDFLARE_KV"
+    subscribe:
+      environments:
+        - name: stage
+          profile: verify
+          parameters:
+            scriptName: reacher-x-web-stage
+          env:
+            NEXT_PUBLIC_SITE_URL: https://reacher-x-web-stage.rahulvarghesepullely.workers.dev
+            NEXT_PUBLIC_WORKOS_REDIRECT_URI: https://reacher-x-web-stage.rahulvarghesepullely.workers.dev/callback
+            NEXT_PUBLIC_BLOG_DEMO_ORIGIN: https://reacher-x-demo-stage.rahulvarghesepullely.workers.dev
+          profileRules:
+            - profile: deploy
+              when:
+                triggerRef: github-push-main
+        - name: prod
+          profile: verify
+          parameters:
+            scriptName: reacher-x-web-prod
+          env:
+            NEXT_PUBLIC_SITE_URL: https://reacher-x-web-prod.rahulvarghesepullely.workers.dev
+            NEXT_PUBLIC_WORKOS_REDIRECT_URI: https://reacher-x-web-prod.rahulvarghesepullely.workers.dev/callback
+            NEXT_PUBLIC_BLOG_DEMO_ORIGIN: https://reacher-x-demo-prod.rahulvarghesepullely.workers.dev
+          profileRules:
+            - profile: deploy
+              when:
+                triggerRef: github-push-main
+
+repo:
+  displayName: ReacherX
+  docs:
+    overview: README.md
+    pages:
+      - {
+          path: specs/epics/reacher-x-on-orunbase/README.md,
+          role: reference,
+          title: The epic,
+        }
+      - {
+          path: specs/epics/reacher-x-on-orunbase/design.md,
+          role: architecture,
+          title: Design,
+        }

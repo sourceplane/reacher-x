@@ -1,0 +1,16 @@
+apiVersion: sourceplane.io/v1alpha1
+kind: ExecutionProfile
+metadata:
+  name: reacherx-worker-pull-request
+spec:
+  description: Fast PR validation for a Cloudflare Workers + Static Assets package
+
+  jobs:
+    verify-deploy:
+      includeCapabilities:
+        - reacherx-worker.setup-node
+        - reacherx-worker.setup-pnpm
+        - reacherx-worker.install
+        - reacherx-worker.verify-structure
+        - reacherx-worker.build
+        - reacherx-worker.verify-output

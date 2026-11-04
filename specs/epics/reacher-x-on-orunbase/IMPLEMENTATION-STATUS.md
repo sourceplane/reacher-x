@@ -7,7 +7,7 @@ place the code departed from `design.md` or from upstream.
 | --------------------------- | ----- | ----------------------------------------------------- |
 | RX0 the spec                | done  | [#1](https://github.com/sourceplane/reacher-x/pull/1) |
 | RX1 the apps run on Workers | done  | [#4](https://github.com/sourceplane/reacher-x/pull/4) |
-| RX2 Orun runs it            |       |                                                       |
+| RX2 Orun runs it            | done  | [#3](https://github.com/sourceplane/reacher-x/pull/3) |
 | RX3 live on stage and prod  |       |                                                       |
 | RX4 ready to hand over      |       |                                                       |
 
@@ -32,6 +32,17 @@ sealed PKCE state. `"use cache"` entries land in the KV namespace. The demo
 serves `/`, `/agent`, `/agent/setup`, `/agent-ops`, `/analytics`,
 `/notifications`, `/archives`, `/plans`, `/usage` and `/settings` from its
 prerendered assets.
+
+## RX2 as built
+
+`orun plan` resolves four components in two environments. On a pull
+request: `cloudflare-kv` plan-only, `backend`, `demo` and `web` verify, in
+stage only. On `main`: `cloudflare-kv` apply, `backend` deploy (skipped
+until `CONVEX_DEPLOY_KEY` exists), `demo` and `web` deploy with smoke
+checks, stage first, then prod. `web` writes `WORKOS_COOKIE_PASSWORD` into
+its Worker after each deploy (`materialize`, target `cloudflare-worker`).
+`.github/workflows/orun.yml` runs only when `ORUN_CI` is `true`; CI pins
+orun v2.78.4 and stack-tectonic 0.20.0, the versions the baselines run.
 
 ## Departures from upstream
 

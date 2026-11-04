@@ -1,0 +1,17 @@
+apiVersion: sourceplane.io/v1alpha1
+kind: ExecutionProfile
+metadata:
+  name: reacherx-worker-verify
+spec:
+  description: Full non-mutating verification including wrangler deploy --dry-run
+
+  jobs:
+    verify-deploy:
+      includeCapabilities:
+        - reacherx-worker.setup-node
+        - reacherx-worker.setup-pnpm
+        - reacherx-worker.install
+        - reacherx-worker.verify-structure
+        - reacherx-worker.build
+        - reacherx-worker.verify-output
+        - reacherx-worker.deploy-dry-run

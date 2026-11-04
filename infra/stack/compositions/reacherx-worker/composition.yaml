@@ -1,0 +1,36 @@
+apiVersion: sourceplane.io/v1alpha1
+kind: Composition
+metadata:
+  name: reacherx-worker
+spec:
+  type: reacherx-worker
+  description: >-
+    ReacherX's copy of stack-tectonic's cloudflare-workers-assets-turbo whose
+    deploy profile also materializes the main app's Worker secrets. Cloudflare
+    Worker + Static Assets (single-bundle) build, verify, and deploy pipeline. Targets apps that emit a Worker entrypoint plus an assets
+    directory consumed via the `ASSETS` binding, e.g. Next.js apps built with
+    `@opennextjs/cloudflare`. Per-environment isolation is done via worker
+    naming (mirrors `cloudflare-pages-turbo`'s `environmentAwareProjectName`),
+    not wrangler envs.
+
+  schemaRef:
+    name: reacherx-worker-component
+
+  defaultJob: verify-deploy
+  defaultProfile: verify
+
+  jobs:
+    - name: verify-deploy
+      templateRef:
+        name: reacherx-worker-verify-deploy
+
+  profiles:
+    - name: pull-request
+      profileRef:
+        name: reacherx-worker-pull-request
+    - name: verify
+      profileRef:
+        name: reacherx-worker-verify
+    - name: deploy
+      profileRef:
+        name: reacherx-worker-deploy

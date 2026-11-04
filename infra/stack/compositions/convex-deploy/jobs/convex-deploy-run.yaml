@@ -1,0 +1,68 @@
+apiVersion: sourceplane.io/v1alpha1
+kind: JobTemplate
+metadata:
+  name: convex-deploy-run
+spec:
+  description: Verify and deploy a Convex backend from a pnpm workspace
+  runsOn: ubuntu-22.04
+  timeout: 20m
+  retries: 0
+
+  labels:
+    scope: backend
+
+  capabilities:
+    - convex-deploy.setup-node
+    - convex-deploy.setup-pnpm
+    - convex-deploy.install
+    - convex-deploy.verify-structure
+    - convex-deploy.deploy
+
+  steps:
+    - id: setup-node
+      name: setup-node
+      capability: convex-deploy.setup-node
+      use: actions/setup-node@v6
+      with:
+        node-version: "{{ .parameters.nodeVersion }}"
+
+    - id: setup-pnpm
+      name: setup-pnpm
+      capability: convex-deploy.setup-pnpm
+      use: pnpm/action-setup@v4
+      with:
+        version: "{{ .parameters.pnpmVersion }}"
+
+    # Shared with every other job of the lane that runs the same install.
+    - id: install-workspace-dependencies
+      name: install-workspace-dependencies
+      capability: convex-deploy.install
+      scope: lane
+      shell: bash
+      run: "{{ .parameters.installCommand }}"
+      onFailure: stop
+
+    # The type check and the Convex tests run in the repository's own Checks
+    # workflow; here the lane only confirms the backend is present.
+    - id: verify-structure
+      name: verify-structure
+      capability: convex-deploy.verify-structure
+      shell: bash
+      run: |
+        test -f "{{ .parameters.functionsDir }}/schema.ts"
+        test -f "{{ .parameters.functionsDir }}/_generated/api.d.ts"
+        pnpm exec convex --version
+      onFailure: stop
+
+    - id: deploy
+      name: deploy
+      capability: convex-deploy.deploy
+      shell: bash
+      run: |
+        if [ -z "${CONVEX_DEPLOY_KEY:-}" ]; then
+          echo "CONVEX_DEPLOY_KEY is not stored for {{ .orun.environment.name }}; the Convex deploy is skipped."
+          echo "Store it to turn the deploy on: orun secrets set CONVEX_DEPLOY_KEY --env {{ .orun.environment.name }} (reads stdin)."
+          exit 0
+        fi
+        pnpm exec convex deploy --yes
+      onFailure: stop

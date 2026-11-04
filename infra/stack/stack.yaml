@@ -1,0 +1,14 @@
+apiVersion: orun.io/v1
+kind: Stack
+metadata:
+  name: reacherx
+  title: ReacherX repo-local compositions
+  version: 0.1.0
+  description: >-
+    Compositions this repository needs that stack-tectonic does not ship: the
+    main app's Worker pipeline with secret delivery, and the Convex backend
+    deploy.
+  owner: sourceplane
+  tags:
+    - cloudflare
+    - convex
