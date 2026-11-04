@@ -60,9 +60,12 @@ spec:
       name: verify-app-structure
       capability: reacherx-worker.verify-structure
       shell: bash
+      # The workspace manifest sits at workspaceDir (the demo app has none of
+      # its own), and the Worker config is rendered from its committed
+      # template by the build step.
       run: |
-        test -f package.json
-        test -f "{{ .parameters.wranglerConfig }}"
+        test -f "{{ .parameters.workspaceDir }}/package.json"
+        test -f wrangler.template.jsonc
       onFailure: stop
 
     - id: build-app

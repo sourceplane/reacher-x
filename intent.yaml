@@ -165,6 +165,8 @@ components:
     parameters:
       nodeVersion: "22"
       pnpmVersion: "11.7.0"
+      installCommand: pnpm install --frozen-lockfile
+      functionsDir: convex
     optionalSecretEnv:
       CONVEX_DEPLOY_KEY: "secret://ws_08AC9DT1/reacher-x/{{ .environment }}/CONVEX_DEPLOY_KEY"
     subscribe:
@@ -184,7 +186,7 @@ components:
 
   # The isolated demo app (demos/app): fictional data, no backend, no secrets.
   - name: demo
-    type: cloudflare-workers-assets-turbo
+    type: reacherx-worker
     domain: web
     path: demos/app
     lane: isolated
@@ -231,7 +233,7 @@ components:
           env:
             NEXT_PUBLIC_DEMO_PARENT_ORIGIN: https://reacher-x-web-stage.rahulvarghesepullely.workers.dev
           profileRules:
-            - profile: deploy
+            - profile: deploy-static
               when:
                 triggerRef: github-push-main
         - name: prod
@@ -239,7 +241,7 @@ components:
           env:
             NEXT_PUBLIC_DEMO_PARENT_ORIGIN: https://reacher-x-web-prod.rahulvarghesepullely.workers.dev
           profileRules:
-            - profile: deploy
+            - profile: deploy-static
               when:
                 triggerRef: github-push-main
 
