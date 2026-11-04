@@ -1,0 +1,13 @@
+apiVersion: sourceplane.io/v1alpha1
+kind: ExecutionProfile
+metadata:
+  name: convex-deploy-verify
+spec:
+  description: Non-mutating check that the Convex backend is present
+  jobs:
+    deploy:
+      includeCapabilities:
+        - convex-deploy.setup-node
+        - convex-deploy.setup-pnpm
+        - convex-deploy.install
+        - convex-deploy.verify-structure

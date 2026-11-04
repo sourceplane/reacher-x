@@ -1,0 +1,30 @@
+apiVersion: sourceplane.io/v1alpha1
+kind: Composition
+metadata:
+  name: convex-deploy
+spec:
+  type: convex-deploy
+  description: >-
+    Deploys the Convex backend (functions, schema, crons, HTTP actions) with
+    `convex deploy`. Verify checks the backend is present; deploy runs only
+    when the environment's CONVEX_DEPLOY_KEY is stored, and says so when it
+    is not.
+
+  schemaRef:
+    name: convex-deploy-component
+
+  defaultJob: deploy
+  defaultProfile: verify
+
+  jobs:
+    - name: deploy
+      templateRef:
+        name: convex-deploy-run
+
+  profiles:
+    - name: verify
+      profileRef:
+        name: convex-deploy-verify
+    - name: deploy
+      profileRef:
+        name: convex-deploy-deploy

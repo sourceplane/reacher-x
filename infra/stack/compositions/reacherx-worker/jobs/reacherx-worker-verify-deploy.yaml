@@ -1,0 +1,178 @@
+apiVersion: sourceplane.io/v1alpha1
+kind: JobTemplate
+metadata:
+  name: reacherx-worker-verify-deploy
+spec:
+  description: Capability-tagged atomic steps for Cloudflare Workers + Static Assets with Turborepo
+  runsOn: ubuntu-22.04
+  timeout: 30m
+  retries: 0
+
+  labels:
+    scope: delivery
+
+  capabilities:
+    - reacherx-worker.setup-node
+    - reacherx-worker.setup-pnpm
+    - reacherx-worker.install
+    - reacherx-worker.verify-structure
+    - reacherx-worker.build
+    - reacherx-worker.verify-output
+    - reacherx-worker.deploy-dry-run
+    - reacherx-worker.deploy
+    - reacherx-worker.smoke
+
+  steps:
+    - id: setup-node
+      name: setup-node
+      capability: reacherx-worker.setup-node
+      use: actions/setup-node@v6
+      with:
+        node-version: "{{ .parameters.nodeVersion }}"
+
+    - id: setup-pnpm
+      name: setup-pnpm
+      capability: reacherx-worker.setup-pnpm
+      use: pnpm/action-setup@v4
+      with:
+        version: "{{ .parameters.pnpmVersion }}"
+
+    # ONE INSTALL PER LANE (orun ≥ 2.78.2, runner-efficiency RE4). Every job
+    # of a lane runs the same workspace install, and a lane of twelve workers
+    # used to run it twelve times on one runner, at once. `scope: lane` runs
+    # it once in the shared source tree, after the setup actions and before
+    # each job's private tree is staged; the other jobs wait for that run and
+    # reuse it. A lane-scoped step is shared only when its command, shell,
+    # environment and working directory match across jobs, so it runs at the
+    # monorepo root (`workspaceDir`), the same directory for every component;
+    # a workspace install from any directory installs the whole workspace
+    # anyway. An older orun ignores `scope` and runs it per job at the root.
+    - id: install-workspace-dependencies
+      name: install-workspace-dependencies
+      capability: reacherx-worker.install
+      scope: lane
+      shell: bash
+      working-directory: "{{ .parameters.workspaceDir }}"
+      run: "{{ .parameters.installCommand }}"
+      onFailure: stop
+
+    - id: verify-app-structure
+      name: verify-app-structure
+      capability: reacherx-worker.verify-structure
+      shell: bash
+      run: |
+        test -f package.json
+        test -f "{{ .parameters.wranglerConfig }}"
+      onFailure: stop
+
+    - id: build-app
+      name: build-app
+      capability: reacherx-worker.build
+      shell: bash
+      run: |
+        {{- if .parameters.environmentBuildVar }}
+        export {{ .parameters.environmentBuildVar }}="{{ .orun.environment.name }}"
+        {{- end }}
+        {{ .parameters.buildCommand }}
+      onFailure: stop
+
+    - id: verify-build-output
+      name: verify-build-output
+      capability: reacherx-worker.verify-output
+      shell: bash
+      run: |
+        test -f "{{ .parameters.workerEntrypoint }}"
+        test -d "{{ .parameters.assetsDir }}"
+        # Size sanity: Cloudflare Workers compressed size limit is 10 MB.
+        ls -lh "{{ .parameters.workerEntrypoint }}"
+      onFailure: stop
+
+    - id: deploy-dry-run
+      name: deploy-dry-run
+      capability: reacherx-worker.deploy-dry-run
+      shell: bash
+      run: |
+        {{- if .parameters.environmentAwareWorkerName }}
+        EFFECTIVE_WORKER_NAME="{{ .parameters.workerName }}-{{ .orun.environment.name }}"
+        {{- else }}
+        EFFECTIVE_WORKER_NAME="{{ .parameters.workerName }}"
+        {{- end }}
+        pnpm exec wrangler deploy --dry-run \
+          --config "{{ .parameters.wranglerConfig }}" \
+          --name "${EFFECTIVE_WORKER_NAME}"
+      onFailure: stop
+
+    - id: deploy
+      name: deploy
+      capability: reacherx-worker.deploy
+      shell: bash
+      run: |
+        : "${CLOUDFLARE_ACCOUNT_ID:?CLOUDFLARE_ACCOUNT_ID is required}"
+        : "${CLOUDFLARE_API_TOKEN:?CLOUDFLARE_API_TOKEN is required}"
+
+        {{- if .parameters.environmentAwareWorkerName }}
+        EFFECTIVE_WORKER_NAME="{{ .parameters.workerName }}-{{ .orun.environment.name }}"
+        {{- else }}
+        EFFECTIVE_WORKER_NAME="{{ .parameters.workerName }}"
+        {{- end }}
+
+        # Same first-deploy race as cloudflare-worker-turbo (Cloudflare code
+        # 10007 right after the upload); the deploy is idempotent, so retry.
+        attempts=3
+        for i in $(seq 1 "$attempts"); do
+          if pnpm exec wrangler deploy \
+            --config "{{ .parameters.wranglerConfig }}" \
+            --name "${EFFECTIVE_WORKER_NAME}"; then
+            [ "$i" -gt 1 ] && echo "deploy passed on attempt $i/$attempts"
+            exit 0
+          fi
+          if [ "$i" -lt "$attempts" ]; then
+            wait=$(( i * 10 ))
+            echo "deploy attempt $i/$attempts failed, retrying in ${wait}s"
+            sleep "$wait"
+          fi
+        done
+        echo "deploy failed after $attempts attempts"
+        exit 1
+      onFailure: stop
+
+    - id: smoke
+      name: smoke
+      capability: reacherx-worker.smoke
+      shell: bash
+      run: |
+        set -uo pipefail
+        export ORUN_ENVIRONMENT="{{ .orun.environment.name }}"
+        {{- if .parameters.environmentAwareWorkerName }}
+        export EFFECTIVE_WORKER_NAME="{{ .parameters.workerName }}-{{ .orun.environment.name }}"
+        {{- else }}
+        export EFFECTIVE_WORKER_NAME="{{ .parameters.workerName }}"
+        {{- end }}
+        {{- if .parameters.workersDevSubdomain }}
+        export WORKERS_DEV_SUBDOMAIN="{{ .parameters.workersDevSubdomain }}"
+        export DEPLOYED_URL="https://${EFFECTIVE_WORKER_NAME}.${WORKERS_DEV_SUBDOMAIN}.workers.dev"
+        {{- end }}
+        # smokeCommand runs under retry-with-backoff: a brand-new workers.dev
+        # route can take MINUTES to resolve on a first deploy (measured live
+        #, a console route 404'd for minutes then served 200), and a raw
+        # single-shot probe parks the whole convergence (and every DAG
+        # dependent) on a manual rerun. ~4.5 min budget; a real regression
+        # still fails after it.
+        smoke() {
+          {{ .parameters.smokeCommand }}
+        }
+        attempts=10
+        for i in $(seq 1 "$attempts"); do
+          if smoke; then
+            [ "$i" -gt 1 ] && echo "smoke passed on attempt $i/$attempts"
+            exit 0
+          fi
+          if [ "$i" -lt "$attempts" ]; then
+            wait=$(( i * 6 )); [ "$wait" -gt 45 ] && wait=45
+            echo "smoke attempt $i/$attempts failed, retrying in ${wait}s"
+            sleep "$wait"
+          fi
+        done
+        echo "smoke failed after $attempts attempts (~4.5m budget)"
+        exit 1
+      onFailure: stop
