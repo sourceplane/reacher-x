@@ -1,0 +1,15 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: RX-11
+  title: "RX3: the landing header shows the real GitHub star count on Workers"
+spec:
+  goal: "getGitHubStars sends a User-Agent, which GitHub's API requires and Workers' fetch does not add (Node's does), so the header shows the repository's star count instead of 0"
+  affects:
+    - "features/landing/lib/getGitHubStars.ts"
+    - "specs/epics/reacher-x-on-orunbase/**"
+    - "tasks/**"
+  doneWhen:
+    - "the GitHub request from the Worker answers 200 instead of 403"
+    - "the live /home header shows the star count"
+  gates: []

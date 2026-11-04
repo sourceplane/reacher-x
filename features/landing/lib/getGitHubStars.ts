@@ -40,6 +40,9 @@ async function getCachedGitHubStarsCount(): Promise<number> {
       cache: "force-cache",
       headers: {
         Accept: "application/vnd.github+json",
+        // GitHub's API refuses requests without a User-Agent (403), and the
+        // Cloudflare Workers runtime does not add one the way Node does.
+        "User-Agent": "ReacherX",
         "X-GitHub-Api-Version": "2022-11-28",
         ...(process.env.GITHUB_TOKEN
           ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` }
