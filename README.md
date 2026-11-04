@@ -176,9 +176,9 @@ What is connected today is the hosting. To serve real users:
    `intent.yaml` to the deployment's `https://<name>.convex.cloud`.
 2. **WorkOS.** Put the AuthKit client id in `wrangler.template.jsonc`
    (`WORKOS_CLIENT_ID`), store `WORKOS_API_KEY` with `orun secrets set`,
-   add it to the `materialize` list in
-   `infra/stack/compositions/reacherx-worker/profiles/reacherx-worker-deploy.yaml`,
-   and add each environment's `/callback` URL as a redirect URI in WorkOS.
+   add it to the `web` component in `intent.yaml` (`secretEnv`, and to
+   `workerSecrets`, which the deploy writes into the Worker), and add each
+   environment's `/callback` URL as a redirect URI in WorkOS.
 3. **reacherx.com.** Move the DNS zone to Cloudflare (it is at GoDaddy and
    points at Vercel), add a `cloudflare-domain` component for
    `reacherx.com` and `www`, then point `NEXT_PUBLIC_SITE_URL`,
