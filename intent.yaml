@@ -155,6 +155,13 @@ components:
     type: convex-deploy
     domain: backend
     path: .
+    change:
+      inputs:
+        - "convex/**"
+        - "convex.json"
+        - "package.json"
+        - "pnpm-lock.yaml"
+        - "infra/stack/compositions/convex-deploy/**"
     parameters:
       nodeVersion: "22"
       pnpmVersion: "11.7.0"
@@ -181,6 +188,23 @@ components:
     domain: web
     path: demos/app
     lane: isolated
+    # The demo reuses the main app's components, so shared code selects it.
+    change:
+      inputs:
+        - "app/**"
+        - "features/**"
+        - "shared/**"
+        - "components/**"
+        - "convex/**"
+        - "types/**"
+        - "package.json"
+        - "pnpm-lock.yaml"
+        - "pnpm-workspace.yaml"
+        - "patches/**"
+        - "tooling/**"
+        - "tsconfig.json"
+        - "postcss.config.mjs"
+        - "global.d.ts"
     parameters:
       nodeVersion: "22"
       pnpmVersion: "11.7.0"
@@ -225,6 +249,35 @@ components:
     domain: web
     path: .
     lane: isolated
+    # The app sits at the repository root, so its own path selects nothing:
+    # these are the files that change what the Worker serves.
+    change:
+      inputs:
+        - "app/**"
+        - "features/**"
+        - "shared/**"
+        - "components/**"
+        - "convex/**"
+        - "types/**"
+        - "package.json"
+        - "pnpm-lock.yaml"
+        - "pnpm-workspace.yaml"
+        - "patches/**"
+        - "tooling/**"
+        - "tsconfig.json"
+        - "postcss.config.mjs"
+        - "global.d.ts"
+        - "content/**"
+        - "public/**"
+        - "proxy.ts"
+        - "instrumentation.ts"
+        - "mdx-components.tsx"
+        - "next.config.mjs"
+        - "open-next.config.ts"
+        - "wrangler.template.jsonc"
+        - "wiring.fixture.json"
+        - "scripts/**"
+        - "infra/stack/compositions/reacherx-worker/**"
     dependsOn:
       - component: cloudflare-kv
       - component: backend
