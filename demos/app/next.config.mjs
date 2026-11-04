@@ -18,6 +18,8 @@ export default function config(phase) {
       "Use the exact parent origin, without a path or trailing slash."
     );
   return {
+    // @opennextjs/cloudflare bundles the standalone output into the Worker.
+    output: "standalone",
     // Temporary uploads must use their no-store response, without optimizer caching.
     images: { unoptimized: true },
     async headers() {
@@ -58,6 +60,16 @@ export default function config(phase) {
         "@/features/composer/hooks/useVoiceNoteRecorder":
           "./runtime/useSampleVoiceNoteRecorder.ts",
         "@/shared/lib/linkedin/media": "./runtime/demoMediaHelpers.ts",
+        // Browser-only libraries get server stand-ins, as in the main app, so
+        // their code and WebAssembly stay out of the Worker.
+        "@/shared/lib/highlight/browserShiki": {
+          browser: "../../shared/lib/highlight/browserShiki.ts",
+          default: "../../shared/lib/highlight/browserShiki.server.ts",
+        },
+        "@/features/agent/lib/xChatSdk": {
+          browser: "../../features/agent/lib/xChatSdk.ts",
+          default: "../../features/agent/lib/xChatSdk.server.ts",
+        },
       },
     },
   };

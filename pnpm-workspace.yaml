@@ -3,9 +3,17 @@ allowBuilds:
   esbuild: true
   sharp: true
   unrs-resolver: true
+  workerd: true
 minimumReleaseAgeExclude:
   - "@convex-dev/aggregate@0.3.0"
 patchedDependencies:
   "@convex-dev/action-retrier@0.3.1": patches/@convex-dev__action-retrier@0.3.1.patch
   "@xdevplatform/chat-xdk@0.5.0": patches/@xdevplatform__chat-xdk@0.5.0.patch
   next-themes@0.4.6: patches/next-themes@0.4.6.patch
+packageExtensions:
+  # @opennextjs/cloudflare bundles the Worker with esbuild but does not depend
+  # on it, so pnpm resolves the hoisted esbuild 0.27.0 (from convex), which
+  # panics on this app's server output ("Unexpected expression of type <nil>").
+  "@opennextjs/cloudflare":
+    dependencies:
+      esbuild: ^0.28.2

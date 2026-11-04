@@ -2,7 +2,7 @@
 
 import { cn } from "@/shared/lib/utils";
 import React, { useEffect, useState } from "react";
-import { codeToHtml } from "shiki";
+import { codeToHtml } from "@/shared/lib/highlight/browserShiki";
 
 const DEFAULT_CODE_BLOCK_THEMES = {
   light: "github-light",

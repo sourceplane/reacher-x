@@ -4,27 +4,16 @@ import { fileURLToPath } from "node:url";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Next.js 16: Enable Cache Components (PPR + "use cache" directive)
-  cacheComponents: true,
+  // @opennextjs/cloudflare bundles the standalone output into the Worker.
+  output: "standalone",
+
+  // "use cache" without Cache Components: on Cloudflare Workers Cache
+  // Components makes requests fail or hang (opennextjs-cloudflare#1450).
+  // Switch back to `cacheComponents: true` once that issue is fixed.
 
   // Keep Flight headers visible to proxy.ts so Markdown negotiation cannot
   // rewrite a React navigation/prefetch response into plain text.
   skipProxyUrlNormalize: true,
-
-  // The Open Graph image routes read this package asset at runtime. Explicitly
-  // trace it so Vercel's isolated function includes the font, not only local
-  // installs.
-  outputFileTracingIncludes: {
-    "/blog/opengraph-image": [
-      "./node_modules/geist/dist/fonts/geist-sans/Geist-Regular.ttf",
-    ],
-    "/blog/*/opengraph-image": [
-      "./node_modules/geist/dist/fonts/geist-sans/Geist-Regular.ttf",
-    ],
-    "/home/opengraph-image": [
-      "./node_modules/geist/dist/fonts/geist-sans/Geist-Regular.ttf",
-    ],
-  },
 
   async redirects() {
     return [
@@ -86,7 +75,23 @@ const nextConfig = {
     ],
   },
 
+  // Browser-only libraries get server stand-ins, keeping their code and
+  // WebAssembly out of the Cloudflare Worker (10 MB compressed limit).
+  turbopack: {
+    resolveAlias: {
+      "@/shared/lib/highlight/browserShiki": {
+        browser: "./shared/lib/highlight/browserShiki.ts",
+        default: "./shared/lib/highlight/browserShiki.server.ts",
+      },
+      "@/features/agent/lib/xChatSdk": {
+        browser: "./features/agent/lib/xChatSdk.ts",
+        default: "./features/agent/lib/xChatSdk.server.ts",
+      },
+    },
+  },
+
   experimental: {
+    useCache: true,
     // Turbopack: Persist compiler artifacts for faster dev restarts
     turbopackFileSystemCacheForDev: true,
   },

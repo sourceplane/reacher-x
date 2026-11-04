@@ -2,8 +2,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import { Suspense } from "react";
-import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ConvexClientProvider } from "./ConvexClientProvider";
 import { PostHogProvider } from "./PostHogProvider";
 import { ThemeProvider } from "@/shared/ui/components/ThemeProvider";
@@ -145,8 +143,6 @@ export default function RootLayout({
                 <ConvexClientProvider>{children}</ConvexClientProvider>
               </Suspense>
               <Toaster />
-              <Analytics />
-              <SpeedInsights />
             </NuqsAdapter>
           </ThemeProvider>
         </PostHogProvider>
