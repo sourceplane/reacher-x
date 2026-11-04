@@ -97,5 +97,14 @@ spec:
           smokeCommand:
             type: string
             default: "echo 'No smoke test configured.'"
+          workerSecrets:
+            type: string
+            description: >-
+              Space-separated names of job environment variables (resolved
+              from Orun secrets) written into the deployed Worker as secrets
+              by the deploy profile's worker-secrets step
+          scriptName:
+            type: string
+            description: Worker script name for Orun's materialize step (unused here)
         additionalProperties: false
     additionalProperties: true
