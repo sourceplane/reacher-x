@@ -13,6 +13,9 @@
     "binding": "ASSETS",
   },
   "observability": { "enabled": true },
+  // Source maps stay local: this app's exceed the 60 MiB Cloudflare accepts
+  // per Worker (error 10021).
+  "upload_source_maps": false,
   // Non-secret runtime settings. WorkOS secrets (WORKOS_COOKIE_PASSWORD, and
   // WORKOS_API_KEY once WorkOS is connected) are Worker secrets that Orun
   // writes after each deploy.
