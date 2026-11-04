@@ -8,6 +8,22 @@ on:
   push:
     branches: [main]
   pull_request:
+  # A manual deploy of named components from main (for example the backend
+  # after its Convex deploy key is stored), with nothing changed.
+  workflow_dispatch:
+    inputs:
+      component:
+        description: "Component names, comma-separated (web, demo, backend, cloudflare-kv); empty for every component"
+        required: false
+        type: string
+        default: ""
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options: [stage, prod]
+
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('Deploy {0} to {1}', inputs.component || 'every component', inputs.environment) || '' }}
 
 # PR runs share a group per ref and superseded runs are cancelled (each
 # push re-plans anyway), which stops stale fan-outs from starving the
@@ -45,16 +61,50 @@ jobs:
           # A successful push prints "✓ pushed catalog …"; ORUN_VERBOSE also makes
           # any skip/failure visible instead of silent.
           ORUN_VERBOSE: "1"
+          # A manual run's selection, read from the environment, never
+          # interpolated into the script.
+          DISPATCH_COMPONENT: ${{ inputs.component }}
+          DISPATCH_ENVIRONMENT: ${{ inputs.environment }}
         run: |
           set -euo pipefail
 
-          plan_args=(
-            --from-ci github
-            --event-file "$GITHUB_EVENT_PATH"
-            --intent intent.yaml
-            --output plan.json
-            --changed
-          )
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            # A manual run plans under the push-to-main trigger, filtered to
+            # the environment and the components it names. Main only.
+            if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+              echo "::error title=Orun CI::A manual run deploys main only; this one was started on ${GITHUB_REF}."
+              exit 1
+            fi
+            plan_args=(
+              --trigger github-push-main
+              --env "$DISPATCH_ENVIRONMENT"
+              --intent intent.yaml
+              --output plan.json
+            )
+            IFS=',' read -ra picked <<< "${DISPATCH_COMPONENT:-}"
+            for c in "${picked[@]}"; do
+              c="${c//[[:space:]]/}"
+              [ -z "$c" ] && continue
+              if ! [[ "$c" =~ ^[a-z0-9][a-z0-9._-]{0,99}$ ]]; then
+                echo "::error title=Orun CI::'$c' is not a component name."
+                exit 1
+              fi
+              plan_args+=(--component "$c")
+            done
+          else
+            # orun reads the base intent.yaml from the base branch by name, and
+            # a pull request checkout only has origin/<base>.
+            if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              git branch --force "$GITHUB_BASE_REF" "origin/$GITHUB_BASE_REF"
+            fi
+            plan_args=(
+              --from-ci github
+              --event-file "$GITHUB_EVENT_PATH"
+              --intent intent.yaml
+              --output plan.json
+              --changed
+            )
+          fi
 
           orun plan "${plan_args[@]}"
       # One matrix entry per LANE (execution.lanes in intent.yaml). A plan
