@@ -1,0 +1,16 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: RX-6
+  title: "RX3: deploy both Workers without uploading source maps"
+spec:
+  goal: "The web and demo Workers deploy to stage and prod; wrangler no longer uploads their source maps, which exceed Cloudflare's 60 MiB source map limit"
+  affects:
+    - "wrangler.template.jsonc"
+    - "demos/app/wrangler.template.jsonc"
+    - "specs/epics/reacher-x-on-orunbase/**"
+    - "tasks/**"
+  doneWhen:
+    - "both wrangler templates set upload_source_maps to false"
+    - "a merge to main deploys demo and web to stage and prod with passing smoke checks"
+  gates: []
