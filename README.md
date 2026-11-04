@@ -5,7 +5,7 @@ Open-source `△` Agentic platform and infrastructure that works 24/7 across X/T
 <div align="left">
 
 [![Live site](https://img.shields.io/badge/Live-reacherx.com-000000?style=for-the-badge&logo=googlechrome&logoColor=white)](https://reacherx.com)
-[![Interactive demo](https://img.shields.io/badge/Interactive_demo-reacherx--demos.vercel.app-000000?style=for-the-badge&logo=v&logoColor=white)](https://reacherx-demos.vercel.app/)
+[![Interactive demo](https://img.shields.io/badge/Interactive_demo-Cloudflare_Workers-000000?style=for-the-badge&logo=cloudflare&logoColor=white)](https://reacher-x-demo-prod.rahulvarghesepullely.workers.dev/)
 [![License](https://img.shields.io/badge/License-AGPL--3.0-000000?style=for-the-badge&logo=gnu&logoColor=white)](./LICENSE)
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-000000?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -37,7 +37,7 @@ ReacherX is part of the [Convex for Open Source](https://www.convex.dev/open-sou
 
 [Watch the demo on YouTube](https://www.youtube.com/watch?v=xlyUWC-Uwr8)
 
-There is also an [interactive demo](https://reacherx-demos.vercel.app/). It is a dashboard prepopulated with fictional data, so you can click around and get a general understanding of the product. It is not a walkthrough, and nothing sends from it.
+There is also an [interactive demo](https://reacher-x-demo-prod.rahulvarghesepullely.workers.dev/). It is a dashboard prepopulated with fictional data, so you can click around and get a general understanding of the product. It is not a walkthrough, and nothing sends from it.
 
 ## Who it is for
 
@@ -128,6 +128,67 @@ For the marketing and blog interactive demos, run `cp demos/app/.env.example dem
 Next.js reads local values from `.env.local`. Convex secrets are set per deployment with `npx convex env set`. Copying `.env.example` does not configure the Convex backend. [docs/configuration.md](./docs/configuration.md) has the full variable groups, model routing, and provider limits. Production builds of the main app also need `NEXT_PUBLIC_BLOG_DEMO_ORIGIN` set.
 
 Full functionality needs external provider accounts: Convex, WorkOS, AI providers, X/Twitter, LinkdAPI and Unipile (LinkedIn), Polar (billing), and Resend (email). You only need credentials for the area you work on.
+
+## Hosting on Cloudflare Workers (Orunbase)
+
+The main app and the demo app run on Cloudflare Workers, built by
+[`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare) and deployed by
+[Orunbase](https://app.orunbase.com) from this repository. Convex stays the
+backend on Convex Cloud.
+
+| Environment | Main app                                                     | Demo                                                          |
+| ----------- | ------------------------------------------------------------ | ------------------------------------------------------------- |
+| stage       | https://reacher-x-web-stage.rahulvarghesepullely.workers.dev | https://reacher-x-demo-stage.rahulvarghesepullely.workers.dev |
+| prod        | https://reacher-x-web-prod.rahulvarghesepullely.workers.dev  | https://reacher-x-demo-prod.rahulvarghesepullely.workers.dev  |
+
+### Run the Workers build locally
+
+```bash
+cp .dev.vars.example .dev.vars        # then set WORKOS_COOKIE_PASSWORD (openssl rand -base64 48)
+pnpm build:worker                     # next build + the Worker bundle (.open-next/)
+pnpm preview:worker                   # serves it on workerd at http://localhost:8787
+```
+
+The demo: `NEXT_PUBLIC_DEMO_PARENT_ORIGIN=http://localhost:8787 pnpm build:demo:worker`,
+then `cd demos/app && npx wrangler dev`.
+
+### How a change ships
+
+1. A pull request plans the intent (`intent.yaml`) and verifies every
+   changed component in stage: the Terraform plan, the backend check, and
+   both Worker builds with a `wrangler deploy --dry-run` that reports size.
+2. A merge to `main` applies the cache KV namespaces, deploys the Convex
+   backend (once its deploy key is stored), and deploys both Workers to
+   stage, then prod, each followed by a smoke check.
+
+Every credential is resolved by Orun at run time: the Cloudflare token is
+minted per run from the workspace's Cloudflare connection, and the WorkOS
+cookie password is written into the Worker after each deploy. Nothing
+provider-shaped is stored in GitHub.
+
+### Finish the cut-over
+
+What is connected today is the hosting. To serve real users:
+
+1. **Convex.** Store each environment's deploy key and set its URL:
+   `orun secrets set CONVEX_DEPLOY_KEY --env prod` (reads stdin), then
+   change `NEXT_PUBLIC_CONVEX_URL` for the `web` component in
+   `intent.yaml` to the deployment's `https://<name>.convex.cloud`.
+2. **WorkOS.** Put the AuthKit client id in `wrangler.template.jsonc`
+   (`WORKOS_CLIENT_ID`), store `WORKOS_API_KEY` with `orun secrets set`,
+   add it to the `web` component in `intent.yaml` (`secretEnv`, and to
+   `workerSecrets`, which the deploy writes into the Worker), and add each
+   environment's `/callback` URL as a redirect URI in WorkOS.
+3. **reacherx.com.** Move the DNS zone to Cloudflare (it is at GoDaddy and
+   points at Vercel), add a `cloudflare-domain` component for
+   `reacherx.com` and `www`, then point `NEXT_PUBLIC_SITE_URL`,
+   `NEXT_PUBLIC_WORKOS_REDIRECT_URI`, the demo origins and the X OAuth
+   callback at the new domain.
+4. **Plan.** Both Workers are over the Free plan's 3 MB limit, so the
+   Cloudflare account needs Workers Paid ($5 a month: 10 million requests
+   included, then billed rather than paused).
+
+Design and status: [`specs/epics/reacher-x-on-orunbase/`](./specs/epics/reacher-x-on-orunbase/README.md).
 
 ## Project structure
 
