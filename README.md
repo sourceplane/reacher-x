@@ -129,6 +129,67 @@ Next.js reads local values from `.env.local`. Convex secrets are set per deploym
 
 Full functionality needs external provider accounts: Convex, WorkOS, AI providers, X/Twitter, LinkdAPI and Unipile (LinkedIn), Polar (billing), and Resend (email). You only need credentials for the area you work on.
 
+## Hosting on Cloudflare Workers (Orunbase)
+
+The main app and the demo app run on Cloudflare Workers, built by
+[`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare) and deployed by
+[Orunbase](https://app.orunbase.com) from this repository. Convex stays the
+backend on Convex Cloud.
+
+| Environment | Main app                                                     | Demo                                                          |
+| ----------- | ------------------------------------------------------------ | ------------------------------------------------------------- |
+| stage       | https://reacher-x-web-stage.rahulvarghesepullely.workers.dev | https://reacher-x-demo-stage.rahulvarghesepullely.workers.dev |
+| prod        | https://reacher-x-web-prod.rahulvarghesepullely.workers.dev  | https://reacher-x-demo-prod.rahulvarghesepullely.workers.dev  |
+
+### Run the Workers build locally
+
+```bash
+cp .dev.vars.example .dev.vars        # then set WORKOS_COOKIE_PASSWORD (openssl rand -base64 48)
+pnpm build:worker                     # next build + the Worker bundle (.open-next/)
+pnpm preview:worker                   # serves it on workerd at http://localhost:8787
+```
+
+The demo: `NEXT_PUBLIC_DEMO_PARENT_ORIGIN=http://localhost:8787 pnpm build:demo:worker`,
+then `cd demos/app && npx wrangler dev`.
+
+### How a change ships
+
+1. A pull request plans the intent (`intent.yaml`) and verifies every
+   changed component in stage: the Terraform plan, the backend check, and
+   both Worker builds with a `wrangler deploy --dry-run` that reports size.
+2. A merge to `main` applies the cache KV namespaces, deploys the Convex
+   backend (once its deploy key is stored), and deploys both Workers to
+   stage, then prod, each followed by a smoke check.
+
+Every credential is resolved by Orun at run time: the Cloudflare token is
+minted per run from the workspace's Cloudflare connection, and the WorkOS
+cookie password is written into the Worker after each deploy. Nothing
+provider-shaped is stored in GitHub.
+
+### Finish the cut-over
+
+What is connected today is the hosting. To serve real users:
+
+1. **Convex.** Store each environment's deploy key and set its URL:
+   `orun secrets set CONVEX_DEPLOY_KEY --env prod` (reads stdin), then
+   change `NEXT_PUBLIC_CONVEX_URL` for the `web` component in
+   `intent.yaml` to the deployment's `https://<name>.convex.cloud`.
+2. **WorkOS.** Put the AuthKit client id in `wrangler.template.jsonc`
+   (`WORKOS_CLIENT_ID`), store `WORKOS_API_KEY` with `orun secrets set`,
+   add it to the `materialize` list in
+   `infra/stack/compositions/reacherx-worker/profiles/reacherx-worker-deploy.yaml`,
+   and add each environment's `/callback` URL as a redirect URI in WorkOS.
+3. **reacherx.com.** Move the DNS zone to Cloudflare (it is at GoDaddy and
+   points at Vercel), add a `cloudflare-domain` component for
+   `reacherx.com` and `www`, then point `NEXT_PUBLIC_SITE_URL`,
+   `NEXT_PUBLIC_WORKOS_REDIRECT_URI`, the demo origins and the X OAuth
+   callback at the new domain.
+4. **Plan.** Both Workers are over the Free plan's 3 MB limit, so the
+   Cloudflare account needs Workers Paid ($5 a month: 10 million requests
+   included, then billed rather than paused).
+
+Design and status: [`specs/epics/reacher-x-on-orunbase/`](./specs/epics/reacher-x-on-orunbase/README.md).
+
 ## Project structure
 
 - `app/`: Next.js routes and entry points.

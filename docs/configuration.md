@@ -77,7 +77,7 @@ pnpm dev
 
 ## Convex Deployment Credentials
 
-For the main site's hosted build command (`npx convex deploy --cmd 'npm run build'`), set `CONVEX_DEPLOY_KEY` as a secret in the main hosting project or CI environment. Generate it in the Convex dashboard; never put a real key in this repository, a `NEXT_PUBLIC_` variable, the demo project, or the Convex function environment.
+The `backend` component in `intent.yaml` deploys Convex on every merge to `main` with the environment's `CONVEX_DEPLOY_KEY`, stored in Orunbase (`orun secrets set CONVEX_DEPLOY_KEY --env <stage|prod>`, which reads stdin). Generate it in the Convex dashboard; never put a real key in this repository, a `NEXT_PUBLIC_` variable, the demo project, or the Convex function environment.
 
 | Hosting environment | Key to use                                                                                                                                                                                        |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -85,18 +85,18 @@ For the main site's hosted build command (`npx convex deploy --cmd 'npm run buil
 | Preview             | A project preview deploy key for branch-specific Convex backends. Configure the backend's required auth/provider variables through Convex project defaults or on the selected preview deployment. |
 | Local development   | Use `npx convex dev` and the generated `CONVEX_DEPLOYMENT` selection. A deploy key is normally unnecessary.                                                                                       |
 
-A Vercel Preview environment does not itself isolate Convex. A key for a shared development deployment makes previews update that shared backend; use that only intentionally. Check the target printed by the Convex CLI before deployment. The CLI supplies `NEXT_PUBLIC_CONVEX_URL` to the Next.js build for its selected backend; the demo-origin settings below select a separate frontend app.
+Stage is shared, not per pull request, so it should have its own Convex deployment. A key for a shared development deployment makes previews update that shared backend; use that only intentionally. Check the target printed by the Convex CLI before deployment. The CLI supplies `NEXT_PUBLIC_CONVEX_URL` to the Next.js build for its selected backend; the demo-origin settings below select a separate frontend app.
 
-See [Convex deploy keys](https://docs.convex.dev/cli/deploy-key-types) and [Convex on Vercel](https://docs.convex.dev/production/hosting/vercel).
+See [Convex deploy keys](https://docs.convex.dev/cli/deploy-key-types).
 
 ## Interactive Demos
 
 The marketing pages and blog embed a separate Next.js app from `demos/app`. It reuses product components with fictional local data. It needs neither a Convex deployment nor real authentication or provider credentials. The main site and demo must use different origins.
 
-| Variable                         | Set it in                                        | Local value             | Hosted value                                            |
-| -------------------------------- | ------------------------------------------------ | ----------------------- | ------------------------------------------------------- |
-| `NEXT_PUBLIC_BLOG_DEMO_ORIGIN`   | Main site's `.env.local` and Vercel project      | `http://localhost:3001` | HTTPS origin of the deployed demo app                   |
-| `NEXT_PUBLIC_DEMO_PARENT_ORIGIN` | `demos/app/.env.local` and demo's Vercel project | `http://localhost:3000` | Exact HTTPS origin of the main site embedding that demo |
+| Variable                         | Set it in                                           | Local value             | Hosted value                                            |
+| -------------------------------- | --------------------------------------------------- | ----------------------- | ------------------------------------------------------- |
+| `NEXT_PUBLIC_BLOG_DEMO_ORIGIN`   | Main site's `.env.local` and `web` in `intent.yaml` | `http://localhost:3001` | HTTPS origin of the deployed demo app                   |
+| `NEXT_PUBLIC_DEMO_PARENT_ORIGIN` | `demos/app/.env.local` and `demo` in `intent.yaml`  | `http://localhost:3000` | Exact HTTPS origin of the main site embedding that demo |
 
 Both values are public and baked into the build. Use a scheme and host (plus port locally), without a path, query, credentials, fragment, or trailing slash. Do **not** set these in Convex. `NEXT_PUBLIC_SITE_URL` and the Convex URL do not replace either variable.
 
@@ -120,33 +120,27 @@ pnpm build
 
 Then run `pnpm start:demo` and `pnpm start` in separate terminals. Next.js reads each app's own environment file. Never upload local env files or copy the main site's secrets into the demo app.
 
-### Vercel Setup
+### Cloudflare Workers Setup (Orunbase)
 
-Create **two Vercel projects** linked to the same repository:
+Both apps deploy as Cloudflare Workers through Orunbase, from `intent.yaml`:
 
-| Setting                                     | Main site                                                     | Isolated demo                                                             |
-| ------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| Framework                                   | Next.js                                                       | Next.js                                                                   |
-| Root directory                              | Repository root                                               | `demos/app`                                                               |
-| Include source files outside root directory | Not needed                                                    | Enabled; the demo imports shared product components                       |
-| Install dependencies                        | `corepack install && corepack pnpm install --frozen-lockfile` | `cd ../.. && corepack install && corepack pnpm install --frozen-lockfile` |
-| Build command                               | `npx convex deploy --cmd 'npm run build'`                     | `cd ../.. && corepack pnpm build:demo`                                    |
-| Output directory                            | Framework default                                             | Framework default (`.next` under `demos/app`)                             |
-| Environment                                 | Main-site auth/config plus `NEXT_PUBLIC_BLOG_DEMO_ORIGIN`     | Only `NEXT_PUBLIC_DEMO_PARENT_ORIGIN` is required                         |
+| Setting           | Main site (`web`)                                                                                                 | Isolated demo (`demo`)                                      |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| Worker            | `reacher-x-web-<env>`                                                                                             | `reacher-x-demo-<env>`                                      |
+| Build             | `pnpm build:worker`                                                                                               | `pnpm build:demo:worker`                                    |
+| Worker config     | `wrangler.template.jsonc`, rendered per environment by `tooling/wire`                                             | `demos/app/wrangler.template.jsonc`                         |
+| Build environment | per environment under the `web` component in `intent.yaml`                                                        | `NEXT_PUBLIC_DEMO_PARENT_ORIGIN` under the `demo` component |
+| Secrets           | `WORKOS_COOKIE_PASSWORD` (and `WORKOS_API_KEY` once connected), written into the Worker by Orun after each deploy | none                                                        |
 
-The demo project uses [`demos/app/vercel.json`](../demos/app/vercel.json) for its install/build commands. Keep its Vercel Root Directory set to `demos/app`.
+Both origins are fixed per environment (`https://reacher-x-web-<env>.<subdomain>.workers.dev` and `https://reacher-x-demo-<env>.<subdomain>.workers.dev`, or the custom domains once they exist), so the main site and the demo no longer have to be deployed in a particular order. Change an origin in `intent.yaml` and the next merge rebuilds both.
 
-Deploy the demo first, confirm its origin, then set the main site's `NEXT_PUBLIC_BLOG_DEMO_ORIGIN`. Configure Production, Preview, and Development separately; a Production variable does not automatically apply to a Preview build. The public demo must be accessible to visitors without a Vercel login. Keep the main site's existing deployment protection in place.
-
-The demo's parent setting controls both its `frame-ancestors` policy and its playback message validation. For production, use the canonical main-site origin after redirects (for example, `https://www.example.com`). For a preview, use a separate demo preview built for that branch's **stable main-site preview origin**, and point the main-site branch's `NEXT_PUBLIC_BLOG_DEMO_ORIGIN` at that demo preview. Use Vercel's reported branch aliases rather than guessing their names; long names can be shortened. Scope Preview variables to the matching Git branch. Visit that configured main-site alias when reviewing: a different deployment URL is a different origin and cannot control the demo. Configure a new matching pair for another branch.
-
-Environment changes affect **new builds**, not existing deployments. Rebuild the demo when its parent origin changes and rebuild the main site when its demo origin changes. See [Vercel environment variables](https://vercel.com/docs/environment-variables), [monorepo setup](https://vercel.com/docs/monorepos), and [Convex on Vercel](https://docs.convex.dev/production/hosting/vercel).
+The Convex backend is the `backend` component: on a merge to `main` it runs `convex deploy` with the environment's `CONVEX_DEPLOY_KEY`, stored in Orunbase with `orun secrets set CONVEX_DEPLOY_KEY --env <stage|prod>` (it reads stdin). Without a key the job says so and skips the deploy. Set `NEXT_PUBLIC_CONVEX_URL` for the `web` component to the same deployment's URL.
 
 ### Missing-Origin Build Failures
 
-`Set NEXT_PUBLIC_BLOG_DEMO_ORIGIN to the isolated demo app URL before building the blog` means the **main site's build environment** is missing the demo origin. Compilation and TypeScript can succeed before prerendering fails on a blog or `/home/demo/...` route. Add the value to the correct Vercel environment, then redeploy. Removing the check or substituting the main site's own origin would hide the configuration error and break the iframe.
+`Set NEXT_PUBLIC_BLOG_DEMO_ORIGIN to the isolated demo app URL before building the blog` means the **main site's build environment** is missing the demo origin. Compilation and TypeScript can succeed before prerendering fails on a blog or `/home/demo/...` route. Set it for the `web` component's environment in `intent.yaml`, then merge. Removing the check or substituting the main site's own origin would hide the configuration error and break the iframe.
 
-If the demo reports a missing `NEXT_PUBLIC_DEMO_PARENT_ORIGIN`, set it in the **demo project** and rebuild. If a build passes but playback is blank or unresponsive, check that the demo is reachable without a login and that the browser's main-site origin exactly matches the demo's configured parent.
+If the demo reports a missing `NEXT_PUBLIC_DEMO_PARENT_ORIGIN`, set it for the `demo` component in `intent.yaml` and merge. If a build passes but playback is blank or unresponsive, check that the demo is reachable without a login and that the browser's main-site origin exactly matches the demo's configured parent.
 
 The main project's `CONVEX_DEPLOY_KEY` selects its backend independently. These demo variables do not change that selection; see [Convex Deployment Credentials](#convex-deployment-credentials).
 
