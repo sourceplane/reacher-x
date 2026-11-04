@@ -6,7 +6,7 @@ place the code departed from `design.md` or from upstream.
 | Milestone                   | State | PR                                                    |
 | --------------------------- | ----- | ----------------------------------------------------- |
 | RX0 the spec                | done  | [#1](https://github.com/sourceplane/reacher-x/pull/1) |
-| RX1 the apps run on Workers | done  | [#2](https://github.com/sourceplane/reacher-x/pull/2) |
+| RX1 the apps run on Workers | done  | [#4](https://github.com/sourceplane/reacher-x/pull/4) |
 | RX2 Orun runs it            |       |                                                       |
 | RX3 live on stage and prod  |       |                                                       |
 | RX4 ready to hand over      |       |                                                       |
