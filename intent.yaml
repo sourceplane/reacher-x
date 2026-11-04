@@ -222,7 +222,9 @@ components:
       environmentBuildVar: ORUN_ENVIRONMENT
       installCommand: pnpm install --frozen-lockfile
       buildCommand: node ../../tooling/wire/render.mjs --template wrangler.template.jsonc --out wrangler.jsonc --map ../../wiring.fixture.json --env "${ORUN_ENVIRONMENT}" && cd ../.. && pnpm build:demo:worker
-      smokeCommand: 'html=$(curl -sfL "${DEPLOYED_URL}/agent") && echo "${html}" | grep -qi "reacherx"'
+      # A here-string, not a pipe: the smoke step runs with pipefail, and
+      # grep -q closing a pipe early on a large page fails the pipe (SIGPIPE).
+      smokeCommand: 'html=$(curl -sfL "${DEPLOYED_URL}/agent") && grep -qi "reacherx" <<< "${html}"'
     env:
       NODE_OPTIONS: --max-old-space-size=6144
       NEXT_TELEMETRY_DISABLED: "1"
@@ -303,7 +305,9 @@ components:
       # (worker-secrets step); /home goes through the AuthKit proxy, which
       # needs WORKOS_COOKIE_PASSWORD.
       workerSecrets: WORKOS_COOKIE_PASSWORD
-      smokeCommand: 'html=$(curl -sfL "${DEPLOYED_URL}/home") && echo "${html}" | grep -qi "reacherx"'
+      # A here-string, not a pipe: the smoke step runs with pipefail, and
+      # grep -q closing a pipe early on a large page fails the pipe (SIGPIPE).
+      smokeCommand: 'html=$(curl -sfL "${DEPLOYED_URL}/home") && grep -qi "reacherx" <<< "${html}"'
     env:
       NODE_OPTIONS: --max-old-space-size=6144
       NEXT_TELEMETRY_DISABLED: "1"
